@@ -1,0 +1,14 @@
+.env
+meme-369708-e4bd2f8056f2.json
+__pycache__/
+.DS_Store
+crawling_images/
+google_crawling.py
+google_crawling2.py
+upload_image.py
+meme-369708-e4bd2f8056f2.json
+secrets
+word2vec_api.py
+# image_vector.py
+logs
+tagged_*
