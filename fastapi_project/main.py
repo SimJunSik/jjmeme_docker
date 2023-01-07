@@ -185,6 +185,8 @@ def clean_data(datas):
     for data in datas:
         converted_data = {}
         for key in data.keys():
+            if key == "tags":
+                continue
             if key == "images":
                 converted_data["image"] = {"images": [], "count": 0}
 
