@@ -256,7 +256,7 @@ def recommend_tags(tag: str):
     path="/search",
     description="검색 API",
     status_code=status.HTTP_200_OK,
-    response_model=Meme,
+    response_model=SearchDto,
     responses={200: {"description": "200 응답 데이터는 data 키 안에 들어있음"}},
 )
 async def search(request: Request, keyword: str, offset: int = 0, limit: int = 30, sort: str = ""):
@@ -302,7 +302,7 @@ async def search(request: Request, keyword: str, offset: int = 0, limit: int = 3
     path="/search/tag",
     description="태그 검색 API",
     status_code=status.HTTP_200_OK,
-    response_model=Meme,
+    response_model=SearchDto,
     responses={200: {"description": "200 응답 데이터는 data 키 안에 들어있음"}},
 )
 async def search_by_tag(request: Request, keyword: str, offset: int = 0, limit: int = 30, sort: str = ""):
