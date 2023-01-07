@@ -18,14 +18,20 @@ Base = declarative_base()
 class MEME(Base):
     __tablename__ = "MEME"
     meme_id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(), nullable=False)
-    image_url = Column(String(), nullable=False)
-    image_width = Column(Integer, default=0)
-    image_height = Column(Integer, default=0)
+    name = Column(String(), nullable=False)
     view_count = Column(Integer, default=0)
     share_count = Column(Integer, default=0)
-    create_date = Column(DateTime)
+    created_date = Column(DateTime)
     modified_date = Column(DateTime)
+
+
+class IMAGE(Base):
+    __tablename__ = "IMAGE"
+    image_id = Column(Integer, primary_key=True, index=True)
+    image_url = Column(String(), nullable=False)
+    width = Column(Integer, default=0)
+    height = Column(Integer, default=0)
+    meme_id = Column(Integer, ForeignKey("MEME.meme_id"))
 
 
 class TAG(Base):

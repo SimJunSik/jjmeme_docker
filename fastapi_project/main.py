@@ -62,26 +62,32 @@ es = OpenSearch(
 
 print(es.info())
 
+class Image(BaseModel):
+    image_id: int = Field(title="RDS id")
+    image_url: str = Field(title="이미지 URL")
+    image_width: int = Field(title="이미지 가로 길이")
+    image_height: int = Field(title="이미지 세로 길이")
+
+
+class ImageDto(BaseModel):
+    images: List[Image] = Field(title="meme에 포함된 image들이 있는 리스트")
+    count: int = Field(title="images에 들어있는 image의 개수")
+
 
 class Meme(BaseModel):
-    id: int = Field(title="RDS id")
+    meme_id: int = Field(title="RDS id")
     title: str = Field(title="제목")
-    image_url: str = Field(title="이미지 URL")
-    image_width: int = Field("이미지 가로 길이")
-    image_height: int = Field("이미지 세로 길이")
-    tags: List[str] = Field(title="태그 목록")
+    image: ImageDto = Field(title="image에 대한 정보")
+    # tags: List[str] = Field(title="태그 목록")
     view_count: int = Field(title="조회수")
     share_count: int = Field(title="공유수")
-    create_date: str = Field(title="생성일")
+    created_date: str = Field(title="생성일")
     modified_date: str = Field(title="수정일")
 
 
 class SearchDto(BaseModel):
-    id: str = Field(title="index id", description="_id")
-    index: str = Field(title="index name", description="_index")
-    type: str = Field(title="index type", description="_type")
-    score: float = Field(title="검색 결과 점수", description="_score")
-    source: Meme = Field(title="밈 데이터", description="_source")
+    memes: List[Meme] = Field(title="meme들이 있는 리스트")
+    count: int = Field(title="memes에 들어있는 meme의 개수")
 
 
 def create_index(_index):
@@ -152,12 +158,51 @@ def delete_index(_index):
     es.indices.delete(index=_index)
 
 
-# print(create_index("meme"))
+def snake_to_camel(word):
+    splited_word = word.split("_")
+    if len(splited_word) >= 2:
+        return splited_word[0] + ''.join(x.title() for x in splited_word[1:])
+    return word
 
 
-def clean_data(data):
-    data = [d["_source"] for d in data]
-    return data
+def sort_data(datas, sort):
+    if not sort:
+        return datas
+
+    splited_sort = sort.split(",")
+    if len(splited_sort) == 2:
+        key, order = splited_sort
+    else:
+        key = splited_sort[0]
+        order = "desc"
+    return sorted(datas, key=lambda x: x[key], reverse=True if order == "desc" else False)
+
+
+def clean_data(datas):
+    converted_datas = []
+    
+    datas = [d["_source"] for d in datas]
+    for data in datas:
+        converted_data = {}
+        for key in data.keys():
+            if key == "images":
+                converted_data["image"] = {"images": [], "count": 0}
+
+                for image in data[key].split(","):
+                    image_id, image_url, image_width, image_height = image.split("||")
+                    
+                    converted_image = {}
+                    converted_image["imageId"] = image_id
+                    converted_image["imageUrl"] = image_url
+                    converted_image["imageWidth"] = image_width
+                    converted_image["imageHeight"] = image_height
+                    converted_data["image"]["images"].append(converted_image)
+                converted_data["image"]["count"] = len(converted_data["image"]["images"])
+            else:
+                converted_data[snake_to_camel(key)] = data[key]
+
+        converted_datas.append(converted_data)
+    return converted_datas
 
 
 @app.get("/search-page", response_class=HTMLResponse)
@@ -212,7 +257,7 @@ def recommend_tags(tag: str):
     response_model=Meme,
     responses={200: {"description": "200 응답 데이터는 data 키 안에 들어있음"}},
 )
-async def search(request: Request, keyword: str, offset: int = 0, limit: int = 30):
+async def search(request: Request, keyword: str, offset: int = 0, limit: int = 30, sort: str = ""):
     logger.info(f"[{request.client.host}] keyword: {keyword}")
 
     _index = "meme"  # index name
@@ -246,7 +291,8 @@ async def search(request: Request, keyword: str, offset: int = 0, limit: int = 3
 
     res = es.search(index=_index, body=doc)
     # print(res['hits']['hits'])
-    result = {"data": clean_data(res["hits"]["hits"])}
+    memes = clean_data(res["hits"]["hits"])
+    result = {"memes": sort_data(memes, sort), "count": len(memes)}
     return JSONResponse(content=result)
 
 
@@ -257,7 +303,7 @@ async def search(request: Request, keyword: str, offset: int = 0, limit: int = 3
     response_model=Meme,
     responses={200: {"description": "200 응답 데이터는 data 키 안에 들어있음"}},
 )
-async def search_by_tag(request: Request, keyword: str, offset: int = 0, limit: int = 30):
+async def search_by_tag(request: Request, keyword: str, offset: int = 0, limit: int = 30, sort: str = ""):
     logger.info(f"[{request.client.host}] keyword: {keyword}")
 
     _index = "meme"  # index name
@@ -285,7 +331,8 @@ async def search_by_tag(request: Request, keyword: str, offset: int = 0, limit: 
 
     res = es.search(index=_index, body=doc)
     # print(res['hits']['hits'])
-    result = {"data": clean_data(res["hits"]["hits"])}
+    memes = clean_data(res["hits"]["hits"])
+    result = {"memes": sort_data(memes, sort), "count": len(memes)}
     return JSONResponse(content=result)
 
 
