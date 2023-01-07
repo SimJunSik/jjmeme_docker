@@ -63,10 +63,10 @@ es = OpenSearch(
 print(es.info())
 
 class Image(BaseModel):
-    image_id: int = Field(title="RDS id")
-    image_url: str = Field(title="이미지 URL")
-    image_width: int = Field(title="이미지 가로 길이")
-    image_height: int = Field(title="이미지 세로 길이")
+    imageId: int = Field(title="RDS id")
+    imageUrl: str = Field(title="이미지 URL")
+    imageWidth: int = Field(title="이미지 가로 길이")
+    imageHeight: int = Field(title="이미지 세로 길이")
 
 
 class ImageDto(BaseModel):
@@ -79,10 +79,10 @@ class Meme(BaseModel):
     title: str = Field(title="제목")
     image: ImageDto = Field(title="image에 대한 정보")
     # tags: List[str] = Field(title="태그 목록")
-    view_count: int = Field(title="조회수")
-    share_count: int = Field(title="공유수")
-    created_date: str = Field(title="생성일")
-    modified_date: str = Field(title="수정일")
+    viewCount: int = Field(title="조회수")
+    shareCount: int = Field(title="공유수")
+    createdDate: str = Field(title="생성일")
+    modifiedDate: str = Field(title="수정일")
 
 
 class SearchDto(BaseModel):
