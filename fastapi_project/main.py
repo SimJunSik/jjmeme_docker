@@ -14,9 +14,15 @@ from opensearchpy import OpenSearch, RequestsHttpConnection
 from typing import List
 from collections import Counter
 from loguru import logger
+from sqlalchemy import create_engine
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.sql import exists
 
+import pymysql
+import models
 import os
 
+pymysql.install_as_MySQLdb()
 
 app = FastAPI()
 logger.add("logs/search_log_{time}", rotation="12:00", compression="zip")
@@ -29,6 +35,12 @@ AWS_ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY")
 AWS_SECRET_KEY = os.environ.get("AWS_SECRET_KEY")
 AWS_REGION = os.environ.get("AWS_REGION")
 AWS_SERVICE = os.environ.get("AWS_SERVICE")
+
+DB_USERNAME = os.getenv("DB_USERNAME")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST","localhost")
+DB_PORT = os.getenv("DB_PORT", 3306)
+DB_DATABASE = os.getenv("DB_DATABASE")
 
 HOST = os.environ.get("HOST")
 
@@ -59,6 +71,18 @@ es = OpenSearch(
     max_retries=10,
     retry_on_timeout=True,
 )
+
+DATABASE_URL = f"mysql://{DB_USERNAME}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_DATABASE}"
+engine = create_engine(DATABASE_URL, encoding="utf-8", pool_recycle=3600)
+db_session = scoped_session(sessionmaker(autocommit=False, autoflush=False, bind=engine))
+
+
+def get_db():
+    db = db_session()
+    try:
+        yield db
+    finally:
+        db.close()
 
 print(es.info())
 
@@ -191,14 +215,17 @@ def clean_data(datas):
                 converted_data["image"] = {"images": [], "count": 0}
 
                 for image in data[key].split(","):
-                    image_id, image_url, image_width, image_height = image.split("||")
-                    
-                    converted_image = {}
-                    converted_image["imageId"] = image_id
-                    converted_image["imageUrl"] = image_url
-                    converted_image["imageWidth"] = image_width
-                    converted_image["imageHeight"] = image_height
-                    converted_data["image"]["images"].append(converted_image)
+                    try:
+                        image_id, image_url, image_width, image_height = image.split("||")
+                        
+                        converted_image = {}
+                        converted_image["imageId"] = image_id
+                        converted_image["imageUrl"] = image_url
+                        converted_image["imageWidth"] = image_width
+                        converted_image["imageHeight"] = image_height
+                        converted_data["image"]["images"].append(converted_image)
+                    except:
+                        print(image)
                 converted_data["image"]["count"] = len(converted_data["image"]["images"])
             else:
                 converted_data[snake_to_camel(key)] = data[key]
@@ -308,33 +335,36 @@ async def search(request: Request, keyword: str, offset: int = 0, limit: int = 3
 async def search_by_tag(request: Request, keyword: str, offset: int = 0, limit: int = 30, sort: str = ""):
     logger.info(f"[{request.client.host}] keyword: {keyword}")
 
-    _index = "meme"  # index name
+    db = db_session()
+    result = {"memes": [], "count": 0}
+    if db.query(models.TAG).filter_by(name=keyword).first():
+        _index = "meme"  # index name
 
-    doc = {
-        "query": {
-            "bool": {
-                "should": [
-                    {"match": {"tags": {"query": keyword}}},
-                    {
-                        "bool": {
-                            "should": [
-                                {"match": {"translator": "Constance Garnett"}},
-                                {"match": {"translator": "Louise Maude"}},
-                            ]
-                        }
-                    },
-                ]
-            }
-        },
-        "from": offset,
-        "size": limit,
-        "sort": [{"_score": "desc"}],
-    }
+        doc = {
+            "query": {
+                "bool": {
+                    "should": [
+                        {"match": {"tags": {"query": keyword}}},
+                        {
+                            "bool": {
+                                "should": [
+                                    {"match": {"translator": "Constance Garnett"}},
+                                    {"match": {"translator": "Louise Maude"}},
+                                ]
+                            }
+                        },
+                    ]
+                }
+            },
+            "from": offset,
+            "size": limit,
+            "sort": [{"_score": "desc"}],
+        }
 
-    res = es.search(index=_index, body=doc)
-    # print(res['hits']['hits'])
-    memes = clean_data(res["hits"]["hits"])
-    result = {"memes": sort_data(memes, sort), "count": len(memes)}
+        res = es.search(index=_index, body=doc)
+        logger.info(res['hits']['hits'])
+        memes = clean_data(res["hits"]["hits"])
+        result = {"memes": sort_data(memes, sort), "count": len(memes)}
     return JSONResponse(content=result)
 
 
