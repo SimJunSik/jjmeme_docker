@@ -15,10 +15,22 @@ from sqlalchemy.ext.declarative import declarative_base
 Base = declarative_base()
 
 
+class ACCOUNT(Base):
+    __tablename__ = "ACCOUNT"
+    account_id = Column(Integer, primary_key=True, index=True)
+    email = Column(String(), nullable=False)
+    name = Column(String(), nullable=False)
+    password = Column(String(), nullable=False)
+    created_date = Column(DateTime)
+    modified_date = Column(DateTime)
+
+
 class MEME(Base):
     __tablename__ = "MEME"
     meme_id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
     name = Column(String(), nullable=False)
+    description = Column(String(), default="")
     view_count = Column(Integer, default=0)
     share_count = Column(Integer, default=0)
     created_date = Column(DateTime)
@@ -32,6 +44,7 @@ class IMAGE(Base):
     width = Column(Integer, default=0)
     height = Column(Integer, default=0)
     meme_id = Column(Integer, ForeignKey("MEME.meme_id"))
+    account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
 
 
 class TAG(Base):
@@ -47,9 +60,26 @@ class MEME_TAG(Base):
     meme_tag_id = Column(Integer, primary_key=True, index=True)
     meme_id = Column(Integer, ForeignKey("MEME.meme_id"))
     tag_id = Column(Integer, ForeignKey("TAG.tag_id"))
+    account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
 
 
 class CATEGORY(Base):
     __tablename__ = "CATEGORY"
     category_id = Column(Integer, primary_key=True, index=True)
     name = Column(String(), nullable=False)
+    priority = Column(Integer, default=0)
+
+
+class TAG_LIKE(Base):
+    __tablename__ = "TAG_LIKE"
+    tag_like_id = Column(Integer, primary_key=True, index=True)
+    tag_id = Column(Integer, ForeignKey("TAG.tag_id"))
+    account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
+
+
+# class BOARD(Base):
+#     __tablename__ = "BOARD"
+
+
+# class MEME_BOARD(Base):
+#     __tablename__ = "MEME_BOARD"

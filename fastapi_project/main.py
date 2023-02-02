@@ -365,6 +365,8 @@ async def search_by_tag(request: Request, keyword: str, offset: int = 0, limit: 
         logger.info(res['hits']['hits'])
         memes = clean_data(res["hits"]["hits"])
         result = {"memes": sort_data(memes, sort), "count": len(memes)}
+
+    db.close()
     return JSONResponse(content=result)
 
 

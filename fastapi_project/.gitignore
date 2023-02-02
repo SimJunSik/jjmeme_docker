@@ -12,3 +12,4 @@ word2vec_api.py
 # image_vector.py
 logs
 tagged_*
+token.json
