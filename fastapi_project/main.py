@@ -465,6 +465,7 @@ async def get_logs(request: Request):
 
     dir_path = "./logs/"
     for path in os.listdir(dir_path):
+        logger.info(f"path = {path}, is_zip = {zipfile.is_zipfile(path)}")
         try:
             if zipfile.is_zipfile(path):
                 with zipfile.ZipFile(path, mode="r") as arch:
@@ -472,7 +473,7 @@ async def get_logs(request: Request):
                     for name in name_list:
                         logs.append(arch.read(name))
             else:
-                with open(dir_path + path, "rt", encoding="cp949") as f:
+                with open(dir_path + path, "rt") as f:
                     lines = f.readlines()
                     for line in lines:
                         logs.append(line)
