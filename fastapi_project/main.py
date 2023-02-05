@@ -472,7 +472,7 @@ async def get_logs(request: Request):
                 for name in name_list:
                     logs.append(arch.read(name))
         else:
-            with open(dir_path + path,"rt") as f:
+            with open(dir_path + path, "rt", encoding="cp949") as f:
                 lines = f.readlines()
                 for line in lines:
                     logs.append(line)
