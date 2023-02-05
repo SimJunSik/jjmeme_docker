@@ -368,7 +368,6 @@ async def search_by_tag(request: Request, keyword: str, offset: int = 0, limit: 
         }
 
         res = es.search(index=_index, body=doc)
-        logger.info(res['hits']['hits'])
         memes = clean_data(res["hits"]["hits"])
         result = {"memes": sort_data(memes, sort), "count": len(memes)}
 
@@ -466,15 +465,18 @@ async def get_logs(request: Request):
 
     dir_path = "./logs/"
     for path in os.listdir(dir_path):
-        if zipfile.is_zipfile(path):
-            with zipfile.ZipFile("sample.zip", mode="r") as arch:
-                name_list = arch.namelist()
-                for name in name_list:
-                    logs.append(arch.read(name))
-        else:
-            with open(dir_path + path, "rt", encoding="cp949") as f:
-                lines = f.readlines()
-                for line in lines:
-                    logs.append(line)
+        try:
+            if zipfile.is_zipfile(path):
+                with zipfile.ZipFile(path, mode="r") as arch:
+                    name_list = arch.namelist()
+                    for name in name_list:
+                        logs.append(arch.read(name))
+            else:
+                with open(dir_path + path, "rt", encoding="cp949") as f:
+                    lines = f.readlines()
+                    for line in lines:
+                        logs.append(line)
+        except:
+            continue
 
     return logs
