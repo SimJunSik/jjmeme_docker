@@ -6,12 +6,14 @@ import pymysql
 import models
 import requests
 import time
+import concurrent.futures
 
 from PIL import Image
 from io import BytesIO
 from pprint import pprint
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
+from tqdm import tqdm
 
 pymysql.install_as_MySQLdb()
 
@@ -28,31 +30,54 @@ class MemeDBUploader():
 
     @staticmethod
     def google_drive_to_notion(target_folder_names):
-        # google drive 에서 파일 목록 받아오기
-        files = google_drive_lib.get_files(target_folder_names)
+        # # google drive 에서 파일 목록 받아오기
+        # files = google_drive_lib.get_files(target_folder_names)
 
-        # 받아온 파일 목록 다운로드 받기
-        google_drive_lib.download_from_google_drvie(files)
+        # # 받아온 파일 목록 다운로드 받기
+        # google_drive_lib.download_from_google_drvie(files)
+
+        # 중복 이미지 제거
+        # os.system('image-cleaner ./google_drive_images')
 
         # 다운로드 받은 파일들 s3 업로드
-        s3_lib.upload_image()
+        # s3_lib.upload_image()
 
         # s3 에 올라가있는 이미지 목록 가져오기
         obj_url_list = s3_lib.get_obj_url_list()
         print(obj_url_list)
+        print(len(obj_url_list))
 
         # s3 에서 가져온 목록 notion db 에 업로드 하기
-        notion_db_title_list = notion_lib.get_title_list()
+        notion_db_image_url_list = notion_lib.get_image_url_list()
+        print(notion_db_image_url_list)
+        time.sleep(1)
+
         base_url = "https://jjmeme-bucket-2.s3.amazonaws.com/"
-        for obj_url in obj_url_list:
+        def s3_to_notion(obj_url):
             name, ext = os.path.splitext(obj_url)
-            name = name.replace(base_url, "")
+            name = name.replace(" ", "%20") + ext
             print(name, ext, obj_url)
             
-            if name not in notion_db_title_list:
-                notion_lib.create(name, ext, obj_url.replace(" ", "%20"))
+            if name not in notion_db_image_url_list:
+                notion_lib.create(name.replace(base_url, ""), ext, obj_url.replace(" ", "%20"))
             else:
                 print("Already exists")
+
+        # pbar = tqdm(obj_url_list)
+        # for obj_url in pbar:
+        #     name, ext = os.path.splitext(obj_url)
+        #     name = name.replace(" ", "%20") + ext
+        #     print(name, ext, obj_url)
+            
+        #     if name not in notion_db_image_url_list:      
+        #         notion_lib.create(name, ext, obj_url.replace(" ", "%20"))
+        #     else:
+        #         print("Already exists")
+        # pbar.close()
+
+        # multi threading
+        with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+            executor.map(s3_to_notion, [obj_url for obj_url in obj_url_list])
 
     @staticmethod
     def notion_to_rdb():
@@ -161,7 +186,7 @@ class MemeDBUploader():
 
 
 if __name__ == "__main__":
-    # target_folder_names = ["추가 조사한 무한도전 짤", "2022125_12958_박명수 짤"]
-    # MemeDBUploader.google_drive_to_notion(target_folder_names)
+    target_folder_names = ["무한도전"]
+    MemeDBUploader.google_drive_to_notion(target_folder_names)
 
-    MemeDBUploader.notion_to_rdb()
+    # MemeDBUploader.notion_to_rdb()

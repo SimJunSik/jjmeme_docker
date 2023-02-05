@@ -17,10 +17,12 @@ from loguru import logger
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.sql import exists
+from sqlalchemy.exc import NoResultFound
 
 import pymysql
 import models
 import os
+import random
 
 pymysql.install_as_MySQLdb()
 
@@ -234,6 +236,25 @@ def clean_data(datas):
     return converted_datas
 
 
+def get_search_sholud_query(keyword):
+    should_query = [{"match": {"title": {"query": keyword, "operator": "and", "boost": 3}}},
+                    {"match": {"tags": {"query": keyword, "operator": "and", "boost": 3}}},
+                    {"match": {"title": {"query": keyword, "operator": "or"}}},
+                    {"match": {"tags": {"query": keyword, "operator": "or"}}},
+                    {"match_phrase": {"title.ngram": keyword}},
+                    {"match_phrase": {"tags.ngram": keyword}},
+                    {
+                        "bool": {
+                            "should": [
+                                {"match": {"translator": "Constance Garnett"}},
+                                {"match": {"translator": "Louise Maude"}},
+                            ]
+                        }
+                    }]
+
+    return should_query
+
+
 @app.get("/search-page", response_class=HTMLResponse)
 def search(request: Request):
     return templates.TemplateResponse("search.html", context={"request": request})
@@ -294,22 +315,7 @@ async def search(request: Request, keyword: str, offset: int = 0, limit: int = 3
     doc = {
         "query": {
             "bool": {
-                "should": [
-                    {"match": {"title": {"query": keyword, "operator": "and", "boost": 3}}},
-                    {"match": {"tags": {"query": keyword, "operator": "and", "boost": 3}}},
-                    {"match": {"title": {"query": keyword, "operator": "or"}}},
-                    {"match": {"tags": {"query": keyword, "operator": "or"}}},
-                    {"match_phrase": {"title.ngram": keyword}},
-                    {"match_phrase": {"tags.ngram": keyword}},
-                    {
-                        "bool": {
-                            "should": [
-                                {"match": {"translator": "Constance Garnett"}},
-                                {"match": {"translator": "Louise Maude"}},
-                            ]
-                        }
-                    },
-                ],
+                "should": get_search_sholud_query(keyword),
                 "minimum_should_match": 1,
             }
         },
@@ -370,20 +376,105 @@ async def search_by_tag(request: Request, keyword: str, offset: int = 0, limit: 
     return JSONResponse(content=result)
 
 
+@app.get(
+    path="/search/board/{board_id}",
+    description="특정 보드 내의 밈 검색 API",
+    status_code=status.HTTP_200_OK,
+    response_model=SearchDto,
+    responses={200: {"description": "200 응답 데이터는 data 키 안에 들어있음"}},
+)
+async def search_in_board(request: Request, board_id: int, keyword: str, offset: int = 0, limit: int = 30, sort: str = ""):
+    db = db_session()
+    result = []
+
+    meme_boards = db.query(models.MEME_BOARD).filter_by(board_id=board_id)
+    meme_ids = [str(meme_board.meme_id) for meme_board in meme_boards]
+
+    _index = "meme"  # index name
+
+    doc = {
+        "query": {
+            "bool": {
+                "should": get_search_sholud_query(keyword),
+                "minimum_should_match": 1,
+                "filter": {
+                    "terms": {
+                        "meme_id": meme_ids
+                    }
+                }
+            }
+        },
+        "from": offset,
+        "size": limit,
+        "sort": [{"_score": "desc"}],
+    }
+
+    res = es.search(index=_index, body=doc)
+    memes = clean_data(res["hits"]["hits"])
+    result = {"memes": sort_data(memes, sort), "count": len(memes)}
+
+    db.close()
+    return JSONResponse(content=result)
+
+
+@app.get(
+    path="/search/user/{user_id}",
+    description="@nickname이 찾는 그 밈 API",
+    status_code=status.HTTP_200_OK,
+    response_model=SearchDto,
+    responses={200: {"description": "200 응답 데이터는 data 키 안에 들어있음"}},
+)
+async def search(request: Request, keywords: str, offset: int = 0, limit: int = 30, sort: str = ""):
+    logger.info(f"[{request.client.host}] keywords: {keywords}")
+
+    RANDOM_KEYWORD_NUM = 3
+    keyword_list = keywords.split(",")
+    if len(keyword_list) > RANDOM_KEYWORD_NUM:
+        target_keywords = " ".join(random.shuffle(keyword_list)[:RANDOM_KEYWORD_NUM])
+    else:
+        target_keywords = " ".join(keyword_list)
+
+    _index = "meme"  # index name
+
+    doc = {
+        "query": {
+            "bool": {
+                "should": get_search_sholud_query(target_keywords),
+                "minimum_should_match": 1,
+            }
+        },
+        "from": offset,
+        "size": limit,
+        "sort": [{"_score": "desc"}],
+    }
+
+    res = es.search(index=_index, body=doc)
+    memes = clean_data(res["hits"]["hits"])
+    result = {"memes": sort_data(memes, sort), "count": len(memes)}
+    return JSONResponse(content=result)
+
+
 @app.get(path="/log-viewer")
 async def log_viewer(request: Request):
     return templates.TemplateResponse("log_viewer.html", context={"request": request})
 
 
+import zipfile
 @app.get(path="/log")
 async def get_logs(request: Request):
     logs = []
 
     dir_path = "./logs/"
     for path in os.listdir(dir_path):
-        with open(dir_path + path,"rt") as f:
-            lines = f.readlines()
-            for line in lines:
-                logs.append(line)
+        if zipfile.is_zipfile(path):
+            with zipfile.ZipFile("sample.zip", mode="r") as arch:
+                name_list = arch.namelist()
+                for name in name_list:
+                    logs.append(arch.read(name))
+        else:
+            with open(dir_path + path,"rt") as f:
+                lines = f.readlines()
+                for line in lines:
+                    logs.append(line)
 
     return logs

@@ -77,9 +77,18 @@ class TAG_LIKE(Base):
     account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
 
 
-# class BOARD(Base):
-#     __tablename__ = "BOARD"
+class BOARD(Base):
+    __tablename__ = "BOARD"
+    board_id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
+    image_url = Column(String())
+    is_shared = Column(Boolean())
 
 
-# class MEME_BOARD(Base):
-#     __tablename__ = "MEME_BOARD"
+class MEME_BOARD(Base):
+    __tablename__ = "MEME_BOARD"
+    meme_board_id = Column(Integer, primary_key=True, index=True)
+    account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
+    meme_id = Column(Integer, ForeignKey("MEME.meme_id"))
+    board_id = Column(Integer, ForeignKey("BOARD.board_id"))
+    

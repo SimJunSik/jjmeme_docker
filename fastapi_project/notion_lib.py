@@ -3,6 +3,7 @@ from notion_client import Client
 
 import os
 from pprint import pprint
+from tqdm import tqdm
 
 load_dotenv(dotenv_path="./secrets/.env")
 
@@ -41,14 +42,38 @@ def get_title_list():
         resp = notion.databases.query(database_id=database_id, start_cursor=cursor)
         results = resp['results']
         for data in results:
-            properites = data['properties']
-            title = properites['밈 제목']['title'][0]['plain_text']
-            title_list.append(title)
+            try:
+                properites = data['properties']
+                title = properites['밈 제목']['title'][0]['plain_text']
+                title_list.append(title)
+            except:
+                continue
 
         if not resp['has_more']:
             break
         cursor = resp['next_cursor']
     return title_list
+
+
+def get_image_url_list():
+    image_url_list = []
+    cursor = None
+    while True:
+        resp = notion.databases.query(database_id=database_id, start_cursor=cursor)
+        results = resp['results']
+        for data in results:
+            try:
+                properites = data['properties']
+                image_url = properites['URL']['url']
+                image_url_list.append(image_url)
+            except:
+                print("Does Not Exists: Url value")
+                continue
+
+        if not resp['has_more']:
+            break
+        cursor = resp['next_cursor']
+    return image_url_list
 
 
 def create(name, ext, url):

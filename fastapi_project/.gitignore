@@ -13,3 +13,6 @@ word2vec_api.py
 logs
 tagged_*
 token.json
+google_drive_images/
+image
+park
