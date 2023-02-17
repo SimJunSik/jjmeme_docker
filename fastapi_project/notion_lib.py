@@ -1,9 +1,25 @@
 from dotenv import load_dotenv
 from notion_client import Client
+from PIL import Image
+import requests
+from io import BytesIO
 
 import os
 from pprint import pprint
 from tqdm import tqdm
+
+from google.cloud import vision
+from konlpy.tag import Okt
+from PIL import Image
+from hanspell import spell_checker
+
+import io
+import re
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "secrets/meme-369708-e4bd2f8056f2.json"
+
+client = vision.ImageAnnotatorClient()
+
 
 load_dotenv(dotenv_path="./secrets/.env")
 
@@ -53,6 +69,85 @@ def get_title_list():
             break
         cursor = resp['next_cursor']
     return title_list
+
+
+def update_title_from_image_caption():
+    updated_count = 0
+    cursor = None
+    while True:
+        resp = notion.databases.query(database_id=database_id, start_cursor=cursor)
+        results = resp['results']
+        for data in results:
+            try:
+                properites = data['properties']
+                image_url = properites['URL']['url']
+                title = properites['밈 제목']['title'][0]['plain_text'] if properites['밈 제목']['title'] else ""
+                if not title:
+                    continue
+
+                if "무한도전_" not in title:
+                    continue
+    
+                response = requests.get(image_url)
+                img = Image.open(BytesIO(response.content))
+
+                width, height = img.size
+                left = 0
+                right = width
+                top = height / 2
+                bottom = height * (95/100)
+                _img = img.crop((left, top, right, bottom))
+                
+                buffer = io.BytesIO()
+                _img.save(buffer, format="png")
+
+                image = vision.Image(content=buffer.getvalue())
+                response = client.text_detection(image=image)
+
+                try:
+                    for ta in response.text_annotations:
+                        max_x = -1
+                        min_x = 10000
+                        for v in ta.bounding_poly.vertices:
+                            if v.x > max_x:
+                                max_x = v.x
+                            elif v.x < min_x:
+                                min_x = v.x
+
+                        diff = max_x - min_x
+                        if diff > 300:
+                            desc = ta.description
+                            words = desc.split("\n")
+
+                            result = []
+                            for word in words:
+                                hangul = re.compile(r'[^ .?!~\(\)ㄱ-ㅣ가-힣0-9+]')
+                                hangul = hangul.sub('', word)
+                                hangul = spell_checker.check(hangul).as_dict()
+                                hangul = hangul['checked']
+                                if len(hangul) > 3 and not hangul.strip().replace(" ", "").isnumeric():
+                                    result.append(hangul)
+
+                            if result:
+                                print(title, " ".join(result))
+                                new_properties = properites
+                                new_properties['밈 제목']['title'][0]['plain_text'] = f"#{' '.join(result)}"
+                                new_properties['밈 제목']['title'][0]['text']['content'] = f"#{' '.join(result)}"
+                                notion.pages.update(page_id=data['id'], properties=new_properties)
+                                updated_count += 1
+                except:
+                    continue
+                
+            except Exception as e:
+                print(e)
+                print("Does Not Exists: Url value")
+                continue
+
+        if not resp['has_more']:
+            break
+        cursor = resp['next_cursor']
+
+    print(updated_count)
 
 
 def get_image_url_list():
@@ -127,4 +222,5 @@ if __name__ == "__main__":
     # read()
     # create("test22", ".jpg", "https://jjmeme-bucket-2.s3.amazonaws.com/(집에서)엄청바빠~할게많아.jpg")
     # print(len(get_title_list()))
-    pprint(databases['properties'].keys())
+    # pprint(databases['properties'].keys())
+    update_title_from_image_caption()

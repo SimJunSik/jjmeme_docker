@@ -1,10 +1,14 @@
 from google.cloud import vision
 from konlpy.tag import Okt
+from PIL import Image
+from hanspell import spell_checker
+
 import os
 import io
 import json
+import re
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "meme-369708-e4bd2f8056f2.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "secrets/meme-369708-e4bd2f8056f2.json"
 
 client = vision.ImageAnnotatorClient()
 
@@ -18,7 +22,7 @@ client = vision.ImageAnnotatorClient()
 # image = vision.Image(content=content)
 
 # Performs label detection on the image file
-dir_path = "./crawling_images/crawling_images/2022125_12958_박명수 짤/"
+dir_path = "./google_drive_images/"
 
 # list to store files
 res = []
@@ -32,20 +36,54 @@ for path in os.listdir(dir_path):
         res.append(path)
 
 for r in res:
-    with io.open(dir_path + r, "rb") as image_file:
-        content = image_file.read()
-    image = vision.Image(content=content)
+    im = Image.open(dir_path + r)
+    width, height = im.size
+    left = 0
+    right = width
+    top = height / 2
+    bottom = height * (95/100)
+    _im = im.crop((left, top, right, bottom))
+    
+    buffer = io.BytesIO()
+    _im.save(buffer, format="png")
+
+    # with io.open(dir_path + r, "rb") as image_file:
+    #     content = image_file.read()
+    image = vision.Image(content=buffer.getvalue())
     response = client.text_detection(image=image)
     okt = Okt()
-    print(
-        r,
-        list(
-            filter(
-                lambda x: len(x) > 1,
-                okt.nouns(response.text_annotations[0].description),
-            )
-        ),
-    )
+
+    try:
+        # print(r, response.text_annotations[0].description.replace("\n", ""))
+        # print(r, response.text_annotations)
+        for ta in response.text_annotations:
+            max_x = -1
+            min_x = 10000
+            for v in ta.bounding_poly.vertices:
+                if v.x > max_x:
+                    max_x = v.x
+                elif v.x < min_x:
+                    min_x = v.x
+
+            diff = max_x - min_x
+            if diff > 300:
+                desc = ta.description
+                words = desc.split("\n")
+
+                result = []
+                for word in words:
+                    hangul = re.compile(r'[^ .?!~\(\)ㄱ-ㅣ가-힣0-9+]')
+                    hangul = hangul.sub('', word)
+                    hangul = spell_checker.check(hangul).as_dict()
+                    hangul = hangul['checked']
+                    if len(hangul) > 3 and not hangul.strip().replace(" ", "").isnumeric():
+                        result.append(hangul)
+
+                if result:
+                    # _im.show(title=result)
+                    print(r, " ".join(result))
+    except:
+        continue
 
 
 def gc_logo():

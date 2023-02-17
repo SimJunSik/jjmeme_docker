@@ -28,7 +28,6 @@ class ACCOUNT(Base):
 class MEME(Base):
     __tablename__ = "MEME"
     meme_id = Column(Integer, primary_key=True, index=True)
-    account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
     name = Column(String(), nullable=False)
     description = Column(String(), default="")
     view_count = Column(Integer, default=0)
@@ -44,7 +43,6 @@ class IMAGE(Base):
     width = Column(Integer, default=0)
     height = Column(Integer, default=0)
     meme_id = Column(Integer, ForeignKey("MEME.meme_id"))
-    account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
 
 
 class TAG(Base):
@@ -60,7 +58,6 @@ class MEME_TAG(Base):
     meme_tag_id = Column(Integer, primary_key=True, index=True)
     meme_id = Column(Integer, ForeignKey("MEME.meme_id"))
     tag_id = Column(Integer, ForeignKey("TAG.tag_id"))
-    account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
 
 
 class CATEGORY(Base):
@@ -70,25 +67,23 @@ class CATEGORY(Base):
     priority = Column(Integer, default=0)
 
 
-class TAG_LIKE(Base):
-    __tablename__ = "TAG_LIKE"
+class TAG_FAV(Base):
+    __tablename__ = "TAG_FAV"
     tag_like_id = Column(Integer, primary_key=True, index=True)
     tag_id = Column(Integer, ForeignKey("TAG.tag_id"))
     account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
 
 
-class BOARD(Base):
-    __tablename__ = "BOARD"
-    board_id = Column(Integer, primary_key=True, index=True)
+class COLLECTION(Base):
+    __tablename__ = "COLLECTION"
+    collection_id = Column(Integer, primary_key=True, index=True)
     account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
-    image_url = Column(String())
     is_shared = Column(Boolean())
 
 
-class MEME_BOARD(Base):
-    __tablename__ = "MEME_BOARD"
+class MEME_COLLECTION(Base):
+    __tablename__ = "MEME_COLLECTION"
     meme_board_id = Column(Integer, primary_key=True, index=True)
-    account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
     meme_id = Column(Integer, ForeignKey("MEME.meme_id"))
-    board_id = Column(Integer, ForeignKey("BOARD.board_id"))
+    collection_id = Column(Integer, ForeignKey("COLLECTION.board_id"))
     

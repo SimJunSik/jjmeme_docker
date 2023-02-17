@@ -101,7 +101,7 @@ class ImageDto(BaseModel):
 
 
 class Meme(BaseModel):
-    meme_id: int = Field(title="RDS id")
+    memeId: int = Field(title="RDS id")
     title: str = Field(title="제목")
     image: ImageDto = Field(title="image에 대한 정보")
     # tags: List[str] = Field(title="태그 목록")
@@ -376,18 +376,18 @@ async def search_by_tag(request: Request, keyword: str, offset: int = 0, limit: 
 
 
 @app.get(
-    path="/search/board/{board_id}",
+    path="/search/collection/{collection_id}",
     description="특정 보드 내의 밈 검색 API",
     status_code=status.HTTP_200_OK,
     response_model=SearchDto,
     responses={200: {"description": "200 응답 데이터는 data 키 안에 들어있음"}},
 )
-async def search_in_board(request: Request, board_id: int, keyword: str, offset: int = 0, limit: int = 30, sort: str = ""):
+async def search_in_collection(request: Request, collection_id: int, keyword: str, offset: int = 0, limit: int = 30, sort: str = ""):
     db = db_session()
     result = []
 
-    meme_boards = db.query(models.MEME_BOARD).filter_by(board_id=board_id)
-    meme_ids = [str(meme_board.meme_id) for meme_board in meme_boards]
+    meme_collections = db.query(models.MEME_COLLECTION).filter_by(collection_id=collection_id)
+    meme_ids = [str(meme_collection.meme_id) for meme_collection in meme_collections]
 
     _index = "meme"  # index name
 
@@ -465,7 +465,6 @@ async def get_logs(request: Request):
 
     dir_path = "./logs/"
     for path in os.listdir(dir_path):
-        logger.info(f"path = {path}, is_zip = {zipfile.is_zipfile(path)}")
         try:
             if ".zip" in path:
                 with zipfile.ZipFile(path, mode="r") as arch:
