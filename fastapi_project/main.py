@@ -27,7 +27,7 @@ import random
 pymysql.install_as_MySQLdb()
 
 app = FastAPI()
-logger.add("logs/search_log_{time}", rotation="12:00", compression="zip")
+logger.add("logs/search_log_{time}", rotation="12:00")
 templates = Jinja2Templates(directory="./templates/")
 
 load_dotenv(dotenv_path="./secrets/.env")
