@@ -1,4 +1,4 @@
-import google_drive_lib
+# import google_drive_lib
 import notion_lib
 import s3_lib
 import os
@@ -98,16 +98,18 @@ class MemeDBUploader():
         time.sleep(3)
 
         # Meme column 리스트
-        meme_column_list = ["밈 제목", "밈 설명(optional)", "URL", "기존 태그"]
+        meme_column_list = ["밈 제목", "밈 설명(optional)", "URL", "기존 태그", "보류"]
 
          # 태그 카테고리 리스트
         tag_category_list = [key for key in results[0]['properties'].keys() if key not in meme_column_list]
         print(tag_category_list)
 
-        for result in results:
+        pbar = tqdm(results)
+        for result in pbar:
             data = result['properties']
             pprint(data)
 
+            is_update = False
             tags_dict = {}
             for key in data.keys():
                 if key in tag_category_list:
@@ -117,7 +119,7 @@ class MemeDBUploader():
                     try:
                         name = data['밈 제목']['title'][0]['plain_text']
                     except:
-                        name = "제목을 지어주세요 :("
+                        name = ""
                     
                     try:
                         description = data['밈 설명']['rich_text']['plain_text']
@@ -126,18 +128,32 @@ class MemeDBUploader():
 
                     try:
                         url = data['URL']['url']
+                        if db.query(models.IMAGE).filter_by(url=url).count() != 0:
+                            is_update = True
                     except:
                         url = ""
+
+            if not name.strip():
+                print(f"No target: {name}")
+                continue
+            if name[0] == '#':
+                print(f"No target: {name}")
+                continue
+
             print(tags_dict)
 
             # 밈 생성
             if db.query(models.MEME).filter_by(name=name).count() == 0:
-                meme = models.MEME(name=name, description=description, account_id=account.account_id)
+                meme = models.MEME(name=name, description=description)
                 db.add(meme)
                 db.flush()
                 db.refresh(meme)
             else:
                 meme = db.query(models.MEME).filter_by(name=name).first()
+                meme.name = name
+                meme.description = description
+
+                db.query(models.MEME_TAG).filter_by(meme_id=meme.meme_id).delete()
 
             for category_name in tags_dict.keys():
                 # 카테고리 생성 혹은 가져오기
@@ -158,35 +174,36 @@ class MemeDBUploader():
                         db.add(tag)
                         db.flush()
                         db.refresh(tag)
-
-                        meme_tag = models.MEME_TAG(meme_id=meme.meme_id, tag_id=tag.tag_id, account_id=meme.account_id)
-                        db.add(meme_tag)
                     else:
                         print("Already exists TAG")
+                        tag = db.query(models.TAG).filter_by(name=tag_name, category_id=category.category_id).first()
+
+                    meme_tag = models.MEME_TAG(meme_id=meme.meme_id, tag_id=tag.tag_id)
+                    db.add(meme_tag)
 
             # 이미지 생성
-            if url:
-                if db.query(models.IMAGE).filter_by(image_url=url).count() == 0:
+            if url and not is_update:
+                if db.query(models.IMAGE).filter_by(url=url).count() == 0:
                     response = requests.get(url)
                     try:
                         img = Image.open(BytesIO(response.content))
 
-                        image = models.IMAGE(image_url=url, width=img.width, height=img.height, 
-                                                meme_id=meme.meme_id, account_id=meme.account_id)
+                        image = models.IMAGE(url=url, width=img.width, height=img.height, 
+                                                meme_id=meme.meme_id)
                         db.add(image)
                         db.flush()
                         db.refresh(image)
                     except:
                         continue
                 else:
-                    image = db.query(models.IMAGE).filter_by(image_url=url).first()
+                    image = db.query(models.IMAGE).filter_by(url=url).first()
 
         db.commit()
         db.close()
 
 
 if __name__ == "__main__":
-    target_folder_names = ["무한도전"]
-    MemeDBUploader.google_drive_to_notion(target_folder_names)
+    # target_folder_names = ["무한도전"]
+    # MemeDBUploader.google_drive_to_notion(target_folder_names)
 
-    # MemeDBUploader.notion_to_rdb()
+    MemeDBUploader.notion_to_rdb()

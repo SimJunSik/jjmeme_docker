@@ -6,6 +6,7 @@ from sqlalchemy import (
     DateTime,
     BigInteger,
     ForeignKey,
+    PrimaryKeyConstraint,
 )
 from pydantic import BaseModel
 from sqlalchemy.orm import relationship
@@ -39,7 +40,7 @@ class MEME(Base):
 class IMAGE(Base):
     __tablename__ = "IMAGE"
     image_id = Column(Integer, primary_key=True, index=True)
-    image_url = Column(String(), nullable=False)
+    url = Column(String(), nullable=False)
     width = Column(Integer, default=0)
     height = Column(Integer, default=0)
     meme_id = Column(Integer, ForeignKey("MEME.meme_id"))
@@ -55,7 +56,8 @@ class TAG(Base):
 
 class MEME_TAG(Base):
     __tablename__ = "MEME_TAG"
-    meme_tag_id = Column(Integer, primary_key=True, index=True)
+    __table_args__ = (PrimaryKeyConstraint('meme_tag_id', 'meme_id', 'tag_id'), )
+    meme_tag_id = Column(Integer)
     meme_id = Column(Integer, ForeignKey("MEME.meme_id"))
     tag_id = Column(Integer, ForeignKey("TAG.tag_id"))
 
@@ -69,21 +71,24 @@ class CATEGORY(Base):
 
 class TAG_FAV(Base):
     __tablename__ = "TAG_FAV"
-    tag_like_id = Column(Integer, primary_key=True, index=True)
+    __table_args__ = (PrimaryKeyConstraint('tag_like_id', 'tag_id', 'account_id'), )
+    tag_like_id = Column(Integer)
     tag_id = Column(Integer, ForeignKey("TAG.tag_id"))
     account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
 
 
 class COLLECTION(Base):
     __tablename__ = "COLLECTION"
-    collection_id = Column(Integer, primary_key=True, index=True)
+    __table_args__ = (PrimaryKeyConstraint('collection_id', 'account_id'), )
+    collection_id = Column(Integer)
     account_id = Column(Integer, ForeignKey("ACCOUNT.account_id"))
     is_shared = Column(Boolean())
 
 
 class MEME_COLLECTION(Base):
     __tablename__ = "MEME_COLLECTION"
-    meme_board_id = Column(Integer, primary_key=True, index=True)
+    __table_args__ = (PrimaryKeyConstraint('meme_collection_id', 'meme_id', 'collection_id'), )
+    meme_collection_id = Column(Integer)
     meme_id = Column(Integer, ForeignKey("MEME.meme_id"))
     collection_id = Column(Integer, ForeignKey("COLLECTION.board_id"))
     

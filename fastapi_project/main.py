@@ -423,7 +423,7 @@ async def search_in_collection(request: Request, collection_id: int, keyword: st
     response_model=SearchDto,
     responses={200: {"description": "200 응답 데이터는 data 키 안에 들어있음"}},
 )
-async def search(request: Request, keywords: str, offset: int = 0, limit: int = 30, sort: str = ""):
+async def search_by_nickname(request: Request, keywords: str, offset: int = 0, limit: int = 30, sort: str = ""):
     logger.info(f"[{request.client.host}] keywords: {keywords}")
 
     RANDOM_KEYWORD_NUM = 3
@@ -433,19 +433,26 @@ async def search(request: Request, keywords: str, offset: int = 0, limit: int = 
     else:
         target_keywords = " ".join(keyword_list)
 
+    _sort = {"_score": "desc"}
+    if not target_keywords.strip():
+        _sort = {"view_count": "desc"}
+
     _index = "meme"  # index name
 
     doc = {
-        "query": {
+        "from": offset,
+        "size": limit,
+        "sort": [_sort],
+    }
+
+    if target_keywords.strip():
+        _query = {
             "bool": {
                 "should": get_search_sholud_query(target_keywords),
                 "minimum_should_match": 1,
             }
-        },
-        "from": offset,
-        "size": limit,
-        "sort": [{"_score": "desc"}],
-    }
+        }
+        doc['query'] = _query
 
     res = es.search(index=_index, body=doc)
     memes = clean_data(res["hits"]["hits"])
