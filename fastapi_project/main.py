@@ -33,10 +33,15 @@ templates = Jinja2Templates(directory="./templates/")
 load_dotenv(dotenv_path="./secrets/.env")
 
 
-AWS_ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY")
-AWS_SECRET_KEY = os.environ.get("AWS_SECRET_KEY")
-AWS_REGION = os.environ.get("AWS_REGION")
-AWS_SERVICE = os.environ.get("AWS_SERVICE")
+# AWS_ACCESS_KEY = os.environ.get("AWS_ACCESS_KEY")
+# AWS_SECRET_KEY = os.environ.get("AWS_SECRET_KEY")
+# AWS_REGION = os.environ.get("AWS_REGION")
+# AWS_SERVICE = os.environ.get("AWS_SERVICE")
+
+AWS_ACCESS_KEY = os.environ.get("AWS_ES_ACCESS_KEY")
+AWS_SECRET_KEY = os.environ.get("AWS_ES_SECRET_KEY")
+AWS_REGION = os.environ.get("AWS_ES_REGION")
+AWS_SERVICE = os.environ.get("AWS_ES_SERVICE")
 
 DB_USERNAME = os.getenv("DB_USERNAME")
 DB_PASSWORD = os.getenv("DB_PASSWORD")
@@ -44,7 +49,7 @@ DB_HOST = os.getenv("DB_HOST","localhost")
 DB_PORT = os.getenv("DB_PORT", 3306)
 DB_DATABASE = os.getenv("DB_DATABASE")
 
-HOST = os.environ.get("HOST")
+HOST = os.environ.get("ES_HOST")
 
 origins = ["*"]
 

@@ -104,10 +104,35 @@ class MemeDBUploader():
         tag_category_list = [key for key in results[0]['properties'].keys() if key not in meme_column_list]
         print(tag_category_list)
 
+        db_info = notion_lib.retrieve_database()
+
+        # 태그 리스트
+        tag_list = []
+        for tag_category in tag_category_list:
+            try:
+                tag_list.extend([option['name'] for option in db_info['properties'][tag_category]['multi_select']['options']])
+            except:
+                continue
+
+        print(tag_list)
+
+        category_db_dict = {}
+        for tag_category in tag_category_list:
+            if db.query(models.CATEGORY).filter_by(name=tag_category).count() == 0:
+                category = models.CATEGORY(name=tag_category)
+                db.add(category)
+                db.flush()
+                db.refresh(category)
+            else:
+                print("Already exists CATEGORY")
+                category = db.query(models.CATEGORY).filter_by(name=tag_category).first()
+
+            category_db_dict[tag_category] = category
+
         pbar = tqdm(results)
         for result in pbar:
             data = result['properties']
-            pprint(data)
+            # pprint(data)
 
             is_update = False
             tags_dict = {}
@@ -156,28 +181,22 @@ class MemeDBUploader():
                 db.query(models.MEME_TAG).filter_by(meme_id=meme.meme_id).delete()
 
             for category_name in tags_dict.keys():
-                # 카테고리 생성 혹은 가져오기
-                if db.query(models.CATEGORY).filter_by(name=category_name).count() == 0:
-                    category = models.CATEGORY(name=category_name)
-                    db.add(category)
-                    db.flush()
-                    db.refresh(category)
-                else:
-                    print("Already exists CATEGORY")
-                    category = db.query(models.CATEGORY).filter_by(name=category_name).first()
+                # 카테고리 가져오기
+                category = category_db_dict[category_name]
 
                 # 태그 생성
                 tags = tags_dict[category_name]
-                for tag_name in tags:
-                    if db.query(models.TAG).filter_by(name=tag_name, category_id=category.category_id).count() == 0:
+                for tag_name in tags:   
+                    tag = db.query(models.TAG).filter_by(name=tag_name, category_id=category.category_id).first()
+                    print(tag)
+
+                    if not tag:
+                        print("New TAG", tag_name, category.name)
                         tag = models.TAG(name=tag_name, category_id=category.category_id)
                         db.add(tag)
                         db.flush()
                         db.refresh(tag)
-                    else:
-                        print("Already exists TAG")
-                        tag = db.query(models.TAG).filter_by(name=tag_name, category_id=category.category_id).first()
-
+                    
                     meme_tag = models.MEME_TAG(meme_id=meme.meme_id, tag_id=tag.tag_id)
                     db.add(meme_tag)
 

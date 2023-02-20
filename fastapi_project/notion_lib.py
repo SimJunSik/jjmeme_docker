@@ -37,11 +37,15 @@ databases = notion.databases.retrieve(database_id=database_id)
 # pprint(databases)
 
 def read():
-    resp = notion.databases.query(database_id=database_id)
+    condition = []
+    condition.append({'property': '밈 제목', 'title': {'is_not_empty' : True}})
+    condition.append({'property': '밈 제목', 'title': {'does_not_contain': "#"}})
+    condition.append({'property': '콘텐츠', 'multi_select': {'contains': "무한도전"}})
+    # resp = notion.databases.query(database_id=database_id, filter={'or': condition})
     results = []
     cursor = None
     while True:
-        resp = notion.databases.query(database_id=database_id, start_cursor=cursor)
+        resp = notion.databases.query(database_id=database_id, start_cursor=cursor, filter={'and': condition})
         results.extend(resp['results'])
 
         if not resp['has_more']:
@@ -218,9 +222,21 @@ def create(name, ext, url):
     notion.blocks.children.append(block_id=page_id, children=children_blocks)
 
 
+def retrieve_database():
+    databases = notion.search(filter={"property": "object", "value": "database"})
+    target_db = databases['results'][0]
+
+    database_details = notion.databases.retrieve(database_id=target_db['id'])
+    # pprint(database_details)
+
+    return database_details
+
+
 if __name__ == "__main__":
-    # read()
+    # results = read()
+    # print(len(results))
     # create("test22", ".jpg", "https://jjmeme-bucket-2.s3.amazonaws.com/(집에서)엄청바빠~할게많아.jpg")
     # print(len(get_title_list()))
     # pprint(databases['properties'].keys())
-    update_title_from_image_caption()
+    # update_title_from_image_caption()
+    retrieve_database()
