@@ -322,6 +322,9 @@ async def search(request: Request, keyword: str, offset: int = 0, limit: int = 3
             "bool": {
                 "should": get_search_sholud_query(keyword),
                 "minimum_should_match": 1,
+                "filter": {
+                    "exists" : {"field" : "images"}
+                }
             }
         },
         "from": offset,
@@ -364,7 +367,10 @@ async def search_by_tag(request: Request, keyword: str, offset: int = 0, limit: 
                                 ]
                             }
                         },
-                    ]
+                    ],
+                    "filter": {
+                        "exists" : {"field" : "images"}
+                    }
                 }
             },
             "from": offset,
@@ -404,7 +410,8 @@ async def search_in_collection(request: Request, collection_id: int, keyword: st
                 "filter": {
                     "terms": {
                         "meme_id": meme_ids
-                    }
+                    },
+                    "exists" : {"field" : "images"}
                 }
             }
         },
