@@ -162,7 +162,7 @@ def create_index(_index):
             },
             "mappings": {
                 "properties": {
-                    "title": {
+                    "name": {
                         "type": "text",
                         "analyzer": "korean",
                         "fields": {
@@ -216,8 +216,8 @@ def clean_data(datas):
     for data in datas:
         converted_data = {}
         for key in data.keys():
-            if key == "tags":
-                continue
+            # if key == "tags":
+            #     continue
             if key == "images":
                 converted_data["image"] = {"images": [], "count": 0}
 
@@ -242,11 +242,11 @@ def clean_data(datas):
 
 
 def get_search_sholud_query(keyword):
-    should_query = [{"match": {"title": {"query": keyword, "operator": "and", "boost": 3}}},
+    should_query = [{"match": {"name": {"query": keyword, "operator": "and", "boost": 3}}},
                     {"match": {"tags": {"query": keyword, "operator": "and", "boost": 3}}},
-                    {"match": {"title": {"query": keyword, "operator": "or"}}},
+                    {"match": {"name": {"query": keyword, "operator": "or"}}},
                     {"match": {"tags": {"query": keyword, "operator": "or"}}},
-                    {"match_phrase": {"title.ngram": keyword}},
+                    {"match_phrase": {"name.ngram": keyword}},
                     {"match_phrase": {"tags.ngram": keyword}},
                     {
                         "bool": {
@@ -368,6 +368,7 @@ async def search_by_tag(request: Request, keyword: str, offset: int = 0, limit: 
                             }
                         },
                     ],
+                    "minimum_should_match": 1,
                     "filter": {
                         "exists" : {"field" : "images"}
                     }
