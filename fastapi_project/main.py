@@ -399,6 +399,7 @@ async def search_in_collection(request: Request, collection_id: int, keyword: st
 
     meme_collections = db.query(models.MEME_COLLECTION).filter_by(collection_id=collection_id)
     meme_ids = [str(meme_collection.meme_id) for meme_collection in meme_collections]
+    logger.info(f"meme_ids = {meme_ids}")
 
     _index = "meme"  # index name
 
@@ -407,12 +408,12 @@ async def search_in_collection(request: Request, collection_id: int, keyword: st
             "bool": {
                 "should": get_search_sholud_query(keyword),
                 "minimum_should_match": 1,
-                "filter": {
-                    "terms": {
+                "filter": [
+                    {"terms": {
                         "meme_id": meme_ids
-                    },
-                    "exists" : {"field" : "images"}
-                }
+                    }},
+                    {"exists" : {"field" : "images"}}
+                ]
             }
         },
         "from": offset,
