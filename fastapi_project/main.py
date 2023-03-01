@@ -18,11 +18,16 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy.sql import exists
 from sqlalchemy.exc import NoResultFound
+from tqdm import tqdm
+from io import BytesIO
+from pprint import pprint
 
+import imagehash
 import pymysql
 import models
 import os
 import random
+import requests
 
 pymysql.install_as_MySQLdb()
 
@@ -464,6 +469,9 @@ async def search_by_nickname(request: Request, keywords: str, offset: int = 0, l
             "bool": {
                 "should": get_search_sholud_query(target_keywords),
                 "minimum_should_match": 1,
+                "filter": [
+                    {"exists" : {"field" : "images"}}
+                ]
             }
         }
         doc['query'] = _query
@@ -471,6 +479,37 @@ async def search_by_nickname(request: Request, keywords: str, offset: int = 0, l
     res = es.search(index=_index, body=doc)
     memes = clean_data(res["hits"]["hits"])
     result = {"memes": sort_data(memes, sort), "count": len(memes)}
+    return JSONResponse(content=result)
+
+
+@app.get(
+    path="/search/image",
+    description="동일 이미지 검색 API",
+    status_code=status.HTTP_200_OK,
+    # response_model=SearchDto,
+    responses={200: {"description": "200 응답 데이터는 data 키 안에 들어있음"}},
+)
+async def search_same_image(request: Request, ahash: str, dhash: str, phash: str, offset: int = 0, limit: int = 30):
+    _index = "image"  # index name
+
+    doc = {
+        "query": {
+            "bool": {
+                "must": [
+                    {"match": {"ahash": {"query": ahash, "operator": "and"}}},
+                    {"match": {"dhash": {"query": dhash, "operator": "and"}}},
+                    {"match": {"phash": {"query": phash, "operator": "and"}}},
+                ]
+            }
+        },
+        "from": offset,
+        "size": limit,
+        "sort": {"_score": "desc"},
+    }
+
+    res = es.search(index=_index, body=doc)
+    images = clean_data(res["hits"]["hits"])
+    result = {"images": sort_data(images), "count": len(images)}
     return JSONResponse(content=result)
 
 
@@ -501,3 +540,53 @@ async def get_logs(request: Request):
             continue
 
     return logs
+
+
+def get_same_images():
+    _index = "image"  # index name
+
+    db = db_session()
+
+    import PIL
+    images = db.query(models.IMAGE).all()
+    pbar = tqdm(images)
+    for image in pbar:
+        url = image.image_url
+        print(url)
+        response = requests.get(url)
+        origin_image = PIL.Image.open(BytesIO(response.content))
+        ahash = str(imagehash.average_hash(origin_image))
+        dhash = str(imagehash.dhash(origin_image))
+        phash = str(imagehash.phash_simple(origin_image))
+
+        doc = {
+            "query": {
+                "bool": {
+                    "must": [
+                        {"match": {"ahash": {"query": ahash, "operator": "and"}}},
+                        {"match": {"dhash": {"query": dhash, "operator": "and"}}},
+                        {"match": {"phash": {"query": phash, "operator": "and"}}},
+                    ]
+                    # ,"must_not": {
+                    #     "match": {
+                    #         "image_url": url
+                    #     }
+                    # }
+                }
+            },
+            "from": 0,
+            "size": 100,
+            "sort": {"_score": "desc"},
+        }
+
+        res = es.search(index=_index, body=doc)
+        images = clean_data(res["hits"]["hits"])
+        result = {"images": sort_data(images, None), "count": len(images)}
+        if result['count'] > 1:
+            pprint(result)
+    
+    db.close()
+
+
+if __name__ == "__main__":
+    result = get_same_images()

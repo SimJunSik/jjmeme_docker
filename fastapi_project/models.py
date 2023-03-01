@@ -40,10 +40,13 @@ class MEME(Base):
 class IMAGE(Base):
     __tablename__ = "IMAGE"
     image_id = Column(Integer, primary_key=True, index=True)
-    url = Column(String(), nullable=False)
+    image_url = Column(String(), nullable=False)
     width = Column(Integer, default=0)
     height = Column(Integer, default=0)
     meme_id = Column(Integer, ForeignKey("MEME.meme_id"))
+    ahash = Column(String())
+    dhash = Column(String())
+    phash = Column(String())
 
 
 class TAG(Base):

@@ -14,8 +14,11 @@ from pprint import pprint
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from tqdm import tqdm
+from dotenv import load_dotenv
 
 pymysql.install_as_MySQLdb()
+
+load_dotenv(dotenv_path="./secrets/.env")
 
 class MemeDBUploader():
     DB_USERNAME = os.getenv("DB_USERNAME")
