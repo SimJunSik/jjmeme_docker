@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Body
 from pydantic import BaseModel
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from opensearchpy import OpenSearch, RequestsHttpConnection
-from typing import List
+from typing import List, Optional
 from collections import Counter
 from loguru import logger
 from sqlalchemy import create_engine
@@ -363,7 +363,8 @@ async def search_by_tag(request: Request, keyword: str, offset: int = 0, limit: 
             "query": {
                 "bool": {
                     "should": [
-                        {"match": {"tags": {"query": keyword}}},
+                        # {"match": {"tags": {"query": keyword}}},
+                        {"match_phrase": {"tags.ngram": keyword}},
                         {
                             "bool": {
                                 "should": [
@@ -588,5 +589,94 @@ def get_same_images():
     db.close()
 
 
+class Account(BaseModel):
+    accountId: int = Field(title="RDS id")
+    name: str = Field(title="제목")
+    password: str = Field(title="비밀번호")
+    email: str = Field(title="이메일")
+    saveCount: int = Field(title="저장수")
+    shareCount: int = Field(title="공유수")
+    createdDate: str = Field(title="생성일")
+    modifiedDate: str = Field(title="수정일")
+
+
+@app.get(path="/db-viewer")
+async def db_viewer(request: Request):
+    return templates.TemplateResponse("db_viewer.html", context={"request": request})
+
+from fastapi.encoders import jsonable_encoder
+@app.get(
+    path="/db-viewer/users",
+    status_code=status.HTTP_200_OK,
+    response_model=Account
+)
+async def db_viewer_users(request: Request):
+    db = db_session()
+    users = db.query(models.ACCOUNT).order_by("account_id").all()
+    content = {
+        "users": jsonable_encoder(users)
+    }
+    db.close()
+    return JSONResponse(content=content)
+
+
+@app.get(path="/manage/tag")
+async def tag_manager(request: Request):
+    db = db_session()
+    tags = db.query(models.TAG)
+    tags = tags.join(models.CATEGORY, models.TAG.category_id == models.CATEGORY.category_id)
+    tags = tags.order_by("category_id")
+    
+    categories = db.query(models.CATEGORY).all()
+    db.close()
+
+    data = {
+        "tags": tags,
+        "categories": categories
+    }
+    return templates.TemplateResponse("tag_manager.html", context={"request": request, "data": data})
+
+
+class Tag(BaseModel):
+    tag_name: str
+    category_id: int
+
+
+import json
+
+@app.put(
+    path="/manage/tag/{tag_id}",
+    status_code=status.HTTP_200_OK
+)
+async def change_tag(tag_id: str, request: Request):
+    db = db_session()
+    body = await request.body()
+    body = json.loads(body)
+
+    tag_name = body['tag_name']
+    category_id = body['category_id']
+
+    # 중복
+    if db.query(models.TAG).filter_by(name=tag_name, category_id=category_id).first():
+        content = {
+            "result": "duplicate"
+        }
+        db.close()
+        return JSONResponse(content=content)
+
+    tag = db.query(models.TAG).filter_by(tag_id=tag_id).first()
+    tag.name = tag_name
+    tag.category_id = category_id
+
+    db.commit()
+    db.close()
+
+    content = {
+        "result": "ok"
+    }
+    return JSONResponse(content=content)
+
+
 if __name__ == "__main__":
-    result = get_same_images()
+    # result = get_same_images()
+    print(DB_USERNAME)

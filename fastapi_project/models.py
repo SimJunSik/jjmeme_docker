@@ -21,6 +21,8 @@ class ACCOUNT(Base):
     account_id = Column(Integer, primary_key=True, index=True)
     email = Column(String(), nullable=False)
     name = Column(String(), nullable=False)
+    share_count = Column(Integer, default=0)
+    save_count = Column(Integer, default=0)
     password = Column(String(), nullable=False)
     created_date = Column(DateTime)
     modified_date = Column(DateTime)
@@ -55,6 +57,7 @@ class TAG(Base):
     category_id = Column(Integer, ForeignKey("CATEGORY.category_id"), nullable=True)
     name = Column(String(), nullable=False)
     view_count = Column(Integer, default=0)
+    category = relationship("CATEGORY", back_populates="tags")
 
 
 class MEME_TAG(Base):
@@ -70,6 +73,7 @@ class CATEGORY(Base):
     category_id = Column(Integer, primary_key=True, index=True)
     name = Column(String(), nullable=False)
     priority = Column(Integer, default=0)
+    tags = relationship("TAG", back_populates="category")
 
 
 class TAG_FAV(Base):

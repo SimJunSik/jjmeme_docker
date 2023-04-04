@@ -232,6 +232,10 @@ def retrieve_database():
     return database_details
 
 
+def move_tag():
+    pass
+
+
 if __name__ == "__main__":
     # results = read()
     # print(len(results))
@@ -239,4 +243,5 @@ if __name__ == "__main__":
     # print(len(get_title_list()))
     # pprint(databases['properties'].keys())
     # update_title_from_image_caption()
-    retrieve_database()
+    # retrieve_database()
+    pass
