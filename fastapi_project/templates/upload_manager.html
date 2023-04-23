@@ -200,6 +200,11 @@
             formData.append('subCategoryId', subCategoryId);
             formData.append('selectedTagIds', selectedTagIds);
 
+            if(image === undefined || name === ""){
+                alert("이미지를 설정해주세요");
+                return;
+            }
+
             document.getElementById("mask").style.display = "block";
             fetch(`/manage/meme/upload`, {
                 method: "POST",
