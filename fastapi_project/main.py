@@ -709,14 +709,13 @@ async def upload_meme(request: Request):
     db = db_session()
     body = await request.form()
 
-    print(body['image'])
-
     image = body['image']
     name = body['name']
     description = body['description']
     main_category_id = body['mainCategoryId']
     category_id = body['subCategoryId']
     selected_tag_ids = body['selectedTagIds'].split(",")
+    selected_tag_ids = list(filter(lambda x: len(x) > 0, selected_tag_ids))
 
     print(image, name, description, main_category_id, category_id, selected_tag_ids)
     image_name = image.filename

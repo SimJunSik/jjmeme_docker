@@ -62,7 +62,6 @@ def get_obj_url_list():
     for page in response_iterator:
         for content in page['Contents']:
             results.append(base_url + content['Key'])
-            print(content['Key'])
 
     return results
 
@@ -81,7 +80,7 @@ def get_obj_url_list_only_key():
     return [content['Key'] for content in contents_list]
 
 
-def upload_image(image, image_name):
+def upload_image(image, image_name, prefix="hashed_name_image"):
     s3 = boto3.resource(
         's3',
         region_name=AWS_REGION,
@@ -89,7 +88,7 @@ def upload_image(image, image_name):
         aws_secret_access_key=AWS_SECRET_KEY,
     )
 
-    result = s3.Bucket("jjmeme-bucket-2").put_object(Key=f"hashed_name_image/{image_name}", Body=image, ContentType='image/jpg')    
+    result = s3.Bucket("jjmeme-bucket-2").put_object(Key=f"{prefix}/{image_name}", Body=image, ContentType='image/jpg')    
     print(result)
 
     return result
