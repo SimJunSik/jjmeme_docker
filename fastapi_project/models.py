@@ -71,9 +71,21 @@ class MEME_TAG(Base):
 class CATEGORY(Base):
     __tablename__ = "CATEGORY"
     category_id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(), nullable=False)
+    main_category_id = Column(Integer, ForeignKey("MAIN_CATEGORY.main_category_id"))
+    name = Column(String, nullable=False)
     priority = Column(Integer, default=0)
+    icon = Column(String, nullable=True)
     tags = relationship("TAG", back_populates="category")
+    main_category = relationship("MAIN_CATEGORY", back_populates="categories")
+
+class MAIN_CATEGORY(Base):
+    __tablename__ = "MAIN_CATEGORY"
+    main_category_id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, nullable=False)
+    priority = Column(Integer, default=0)
+    icon = Column(String, nullable=True)
+    has_sub = Column(Boolean, default=False)
+    categories = relationship("CATEGORY", back_populates="main_category")
 
 
 class TAG_FAV(Base):

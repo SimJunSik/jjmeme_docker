@@ -224,7 +224,7 @@ def create(name, ext, url):
 
 def retrieve_database():
     databases = notion.search(filter={"property": "object", "value": "database"})
-    target_db = databases['results'][0]
+    target_db = databases['results'][1]
 
     database_details = notion.databases.retrieve(database_id=target_db['id'])
     # pprint(database_details)
@@ -236,6 +236,44 @@ def move_tag():
     pass
 
 
+def search_by_url(url):
+    # pprint(notion.databases.query(database_id=database_id))
+    condition = []
+    condition.append({'property': 'URL', 'url': {'equals': url}})
+
+    results = []
+    cursor = None
+    while True:
+        resp = notion.databases.query(database_id=database_id, start_cursor=cursor, filter={'and': condition})
+        results.extend(resp['results'])
+
+        if not resp['has_more'] or results:
+            break
+        cursor = resp['next_cursor']
+
+    return results
+
+
+def update_image_url(data, url):
+    properites = data['properties']
+    page_id = data['id']
+    new_properties = properites
+    new_properties['URL']['url'] = url
+    notion.pages.update(page_id=data['id'], properties=new_properties)
+
+    children_image = {
+        "type": "image", 
+        "image": {
+            "external": {
+                "url": url
+            }
+        }
+    }
+    children_blocks = [children_image]
+    notion.blocks.children.append(block_id=page_id, children=[])
+    notion.blocks.children.append(block_id=page_id, children=children_blocks)
+
+
 if __name__ == "__main__":
     # results = read()
     # print(len(results))
@@ -243,5 +281,6 @@ if __name__ == "__main__":
     # print(len(get_title_list()))
     # pprint(databases['properties'].keys())
     # update_title_from_image_caption()
-    # retrieve_database()
+    result = search_by_url('https://jjmeme-bucket-2.s3.amazonaws.com/무한도전_489.jpg')
+    print(result)
     pass

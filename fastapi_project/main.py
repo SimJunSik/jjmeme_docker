@@ -1,3 +1,5 @@
+import hashlib
+import io
 from fastapi import FastAPI, Request, Body
 from pydantic import BaseModel
 from selenium.webdriver.common.by import By
@@ -24,10 +26,13 @@ from pprint import pprint
 
 import imagehash
 import pymysql
+import s3_main_lib
 import models
 import os
 import random
 import requests
+import datetime
+
 
 pymysql.install_as_MySQLdb()
 
@@ -623,16 +628,22 @@ async def db_viewer_users(request: Request):
 @app.get(path="/manage/tag")
 async def tag_manager(request: Request):
     db = db_session()
-    tags = db.query(models.TAG)
-    tags = tags.join(models.CATEGORY, models.TAG.category_id == models.CATEGORY.category_id)
-    tags = tags.order_by("category_id")
-    
+    main_categories = db.query(models.MAIN_CATEGORY).all()
     categories = db.query(models.CATEGORY).all()
+
+    category_datas = {}
+    for main_category in main_categories:
+        category_datas[main_category] = {}
+        sub_categories = db.query(models.CATEGORY).filter_by(main_category_id = main_category.main_category_id)
+        for sub_category in sub_categories:
+            category_datas[main_category][sub_category] = db.query(models.TAG).filter_by(category_id = sub_category.category_id)
+
     db.close()
 
     data = {
-        "tags": tags,
-        "categories": categories
+        'category_datas': category_datas,
+        'main_categories': main_categories,
+        'categories': categories,
     }
     return templates.TemplateResponse("tag_manager.html", context={"request": request, "data": data})
 
@@ -676,6 +687,70 @@ async def change_tag(tag_id: str, request: Request):
     }
     return JSONResponse(content=content)
 
+
+@app.get(path="/manage/upload")
+async def upload_manager(request: Request):
+    db = db_session()
+    main_categories = db.query(models.MAIN_CATEGORY).all()
+    categories = db.query(models.CATEGORY).all()
+    tags = db.query(models.TAG).all()
+    db.close()
+
+    data = {
+        'main_categories': main_categories,
+        'categories': categories,
+        'tags': tags
+    }
+    return templates.TemplateResponse("upload_manager.html", context={"request": request, "data": data})
+
+
+@app.post(path="/manage/meme/upload")
+async def upload_meme(request: Request):
+    db = db_session()
+    body = await request.form()
+
+    print(body['image'])
+
+    image = body['image']
+    name = body['name']
+    description = body['description']
+    main_category_id = body['mainCategoryId']
+    category_id = body['subCategoryId']
+    selected_tag_ids = body['selectedTagIds'].split(",")
+
+    print(image, name, description, main_category_id, category_id, selected_tag_ids)
+    image_name = image.filename
+    image_bytes = await image.read()
+
+    data_io = io.BytesIO(image_bytes)
+    from PIL import Image
+    img = Image.open(data_io)
+    
+    ext = image_name.split(".")[-1]
+    img_name = f"{hashlib.sha256(image_name.encode('utf-8')).hexdigest()}.{ext}"
+    response = s3_main_lib.upload_image(image_bytes, img_name)
+    base_url = "https://jjmeme-bucket-2.s3.amazonaws.com/"
+    full_url = f"{base_url}{response.key}"
+
+    meme = models.MEME(name=name, description=description, created_date=datetime.datetime.now())
+    db.add(meme)
+    db.flush()
+    db.refresh(meme)
+
+    image = models.IMAGE(image_url=full_url, width=img.width, height=img.height, meme_id=meme.meme_id)
+    db.add(image)
+    for selected_tag_id in selected_tag_ids:
+        selected_tag_id = int(selected_tag_id)
+        tag = models.MEME_TAG(meme_id=meme.meme_id, tag_id=selected_tag_id)
+        db.add(tag)
+    
+    db.commit()
+    db.close()
+
+    content = {
+        "result": "ok"
+    }
+    return JSONResponse(content=content)
 
 if __name__ == "__main__":
     # result = get_same_images()

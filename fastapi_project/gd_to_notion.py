@@ -43,7 +43,7 @@ class MemeDBUploader():
         # os.system('image-cleaner ./google_drive_images')
 
         # 다운로드 받은 파일들 s3 업로드
-        # s3_lib.upload_image()
+        # s3_lib.upload_image_gd()
 
         # s3 에 올라가있는 이미지 목록 가져오기
         obj_url_list = s3_lib.get_obj_url_list()
