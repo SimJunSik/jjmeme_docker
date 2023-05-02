@@ -754,8 +754,6 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix=">", intents=intents)
 
-load_dotenv(dotenv_path="./secrets/.env")
-
 DISCORD_TOKEN = os.environ.get("DISCORD_TOKEN")
 
 @bot.command(aliases=['그밈', '그 밈', '밈'])
@@ -782,7 +780,6 @@ async def search_by_bot(ctx, *keyword):
 
     res = es.search(index=_index, body=doc)
     datas = res["hits"]["hits"]
-    # print(datas)
 
     view = View()
     for data in datas:
